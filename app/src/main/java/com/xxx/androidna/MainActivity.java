@@ -1,7 +1,8 @@
 package com.xxx.androidna;
 
+import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
 
 import com.xxx.base.app.BaseActivity;
 import com.xxx.base.utils.AppUtils;
@@ -19,10 +20,18 @@ import java.util.Map;
 public class MainActivity extends BaseActivity {
 
     @Override
-    protected View getContentView() {
-        return View.inflate(this, R.layout.activity_main, null);
+    protected int getContentView() {
+        return R.layout.activity_main;
     }
 
+    @Override
+    protected void beforOnCreate() {
+        App.finishAllActivity(this);
+    }
+
+    public static void start(Context context) {
+        context.startActivity(new Intent(context, MainActivity.class));
+    }
 
     public static String getClientMsg() {
         HashMap<String, Object> map = new HashMap<>();
@@ -60,15 +69,20 @@ public class MainActivity extends BaseActivity {
             headers.put("signature", CodeUtils.md5Encoded(signature));
 
 
-            NetUtils.get(
+            NetUtils.post(
                     "https://dev.gmugmu.com/" + "api/account/checkaccountstatus",
                     this,
                     headers,
-                    map,
+                    new JSONObject(map).toString(),
                     new RequestCallback<String>() {
                         @Override
                         public void onSuccess(String result) {
                             AppUtils.showToastSafe(result);
+                        }
+
+                        @Override
+                        public void onError(Throwable errorInfo) {
+                            AppUtils.showToastSafe(errorInfo.getMessage());
                         }
                     });
         });

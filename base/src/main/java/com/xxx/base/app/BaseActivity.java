@@ -2,13 +2,13 @@ package com.xxx.base.app;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.support.annotation.LayoutRes;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 
 import com.jude.swipbackhelper.SwipeBackHelper;
 import com.lzy.okgo.OkGo;
-import com.xxx.base.utils.AppUtils;
-import com.xxx.base.utils.FileUtils;
+import com.xxx.base.BaseApplication;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -26,11 +26,12 @@ public abstract class BaseActivity extends AppCompatActivity {
 
     // 静态的 可以得到前台Activity
     private static BaseActivity mForegroundActivity;
-    private View contentView;
-    private String className;
+    private View mContentView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        beforOnCreate();
         super.onCreate(savedInstanceState);
 
         //侧滑
@@ -46,24 +47,20 @@ public abstract class BaseActivity extends AppCompatActivity {
                 .setSwipeRelateOffset(500)//activity联动时的偏移量。默认500px。
                 .setDisallowInterceptTouchEvent(false);//不抢占事件，默认关（事件将先由子View处理再由滑动关闭处理）
 
-
-        //初始化sp
-        sp = FileUtils.getSharedPreferences();
-
-        //初始化页面相关
-        init();
-
         //添加到已经打开的Activity集合
-        AppUtils.getActivityList().add(this);
+        BaseApplication.addActivity(this);
 
 
         //设置内容页布局
-        contentView = getContentView();
-        if (contentView != null) {
-            setContentView(contentView);
+        int contentViewRes = getContentView();
+        if (contentViewRes != 0) {
+            mContentView = View.inflate(this, contentViewRes, null);
+        }
+        if (mContentView != null) {
+            setContentView(mContentView);
+            ButterKnife.bind(this, mContentView);
         }
 
-        ButterKnife.bind(this);
         if (!EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().register(this);
         }
@@ -72,13 +69,16 @@ public abstract class BaseActivity extends AppCompatActivity {
         initView(savedInstanceState);
     }
 
-    protected void init(){}
+    protected void beforOnCreate() {
+    }
 
 
     /**
      * @return 返回Activity的内容View
      */
-    protected abstract View getContentView();
+    protected abstract @LayoutRes
+    int getContentView();
+
     protected abstract void initView(Bundle savedInstanceState);
 
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -122,17 +122,18 @@ public abstract class BaseActivity extends AppCompatActivity {
         EventBus.getDefault().unregister(this);
 
         //从Activity集合中移除
-        AppUtils.getActivityList().remove(this);
+        BaseApplication.removeActivity(this);
     }
 
 
     /**
      * 当前Activity的根布局
+     *
      * @return
      */
     public View getCurrentActivityView() {
 
-        if (contentView == null){
+        if (mContentView == null) {
             View cView = null;
             try {
                 cView = getWindow().getDecorView().findViewById(android.R.id.content);
@@ -143,12 +144,12 @@ public abstract class BaseActivity extends AppCompatActivity {
             return cView;
         }
 
-        return contentView;
+        return mContentView;
 
 
     }
 
-    protected  <T extends View> T $(int resId) {
+    protected <T extends View> T $(int resId) {
         return (T) findViewById(resId);
     }
 }

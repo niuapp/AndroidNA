@@ -8,6 +8,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.multidex.MultiDex;
 import android.text.TextUtils;
 import android.text.format.Formatter;
@@ -39,10 +40,10 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
@@ -81,7 +82,7 @@ public class BaseApplication extends Application {
     private static boolean initFlag = false;
 
     //记录打开的Activity 的集合
-    private static List<Activity> allActivity;
+    private static Stack<Activity> mActivityStack;
 
     //记录用户信息
     private static UserInfo userInfo;
@@ -148,7 +149,7 @@ public class BaseApplication extends Application {
 
                     @Override
                     public void onFailed(int i, @NonNull List<String> list) {
-                        if (BaseActivity.getForegroundActivity() != null){
+                        if (BaseActivity.getForegroundActivity() != null) {
                             if (AndPermission.hasAlwaysDeniedPermission(BaseActivity.getForegroundActivity(), list)) {
                                 AndPermission.defaultSettingDialog(BaseActivity.getForegroundActivity(), 120).show();
                             }
@@ -183,7 +184,7 @@ public class BaseApplication extends Application {
      * @return 已经打开的Activity集合
      */
     public static List<Activity> getActivityList() {
-        return allActivity;
+        return mActivityStack;
     }
 
     /**
@@ -272,9 +273,6 @@ public class BaseApplication extends Application {
         mLooper = getMainLooper();
 
         mBaseConst = BaseConst.getInstance();//
-
-        //初始化记录Activity的集合
-        allActivity = new ArrayList<>();
     }
 
     /**
@@ -316,5 +314,126 @@ public class BaseApplication extends Application {
 
     public static Application getContext() {
         return mContext;
+    }
+
+
+    /**
+     * 添加Activity到堆栈
+     */
+    public static void addActivity(Activity activity) {
+        if (mActivityStack == null) {
+            mActivityStack = new Stack<Activity>();
+        }
+        mActivityStack.add(activity);
+    }
+
+    /**
+     * 移除Activity
+     */
+    public static void removeActivity(Activity activity) {
+        if (mActivityStack == null) {
+            return;
+        }
+        mActivityStack.remove(activity);
+    }
+
+    public static Stack<Activity> getActivityStack() {
+        return mActivityStack;
+    }
+
+    /**
+     * 获取当前Activity（堆栈中最后一个压入的）
+     */
+    @Nullable
+    public static Activity currentActivity() {
+        if (mActivityStack == null) return null;
+        if (mActivityStack.isEmpty()) {
+            return null;
+        } else {
+            return mActivityStack.lastElement();
+        }
+    }
+
+    /**
+     * 结束当前Activity（堆栈中最后一个压入的）
+     */
+    public static void finishActivity() {
+        if (mActivityStack == null) return;
+        if (!mActivityStack.isEmpty()) {
+            finishActivity(mActivityStack.lastElement());
+        }
+    }
+
+    /**
+     * 结束指定的Activity
+     */
+    public static void finishActivity(Activity activity) {
+        if (mActivityStack == null) return;
+        if (activity != null) {
+//            mActivityStack.iterator().remove();
+            mActivityStack.remove(activity);
+            if (!activity.isFinishing()) {
+                activity.finish();
+            }
+        }
+    }
+
+    /**
+     * 结束指定类名的Activity
+     */
+    public static void finishActivity(Class<?> cls) {
+        if (mActivityStack == null) return;
+        for (int i = 0; i < mActivityStack.size(); i++) {
+            Activity activity = mActivityStack.get(i);
+            if (activity != null && activity.getClass() == cls) {
+                if (!activity.isFinishing()) {
+                    activity.finish();
+                }
+                mActivityStack.remove(activity);
+                i--;
+            }
+        }
+    }
+
+    /**
+     * 结束所有Activity
+     */
+    public static void finishAllActivity() {
+        if (mActivityStack == null) return;
+        for (int i = 0, size = mActivityStack.size(); i < size; i++) {
+            if (null != mActivityStack.get(i)) {
+                Activity activity = mActivityStack.get(i);
+                if (activity != null && !activity.isFinishing()) {
+                    activity.finish();
+                }
+            }
+        }
+        mActivityStack.clear();
+    }
+
+    /**
+     * 结束所有Activity 除了当前Activity
+     *
+     * @param activity 指定的对象
+     * @param skipList 跳过的类
+     */
+    public static void finishAllActivity(Activity activity, Class... skipList) {
+        if (mActivityStack == null) return;
+        mainFor:
+        for (int i = 0, size = mActivityStack.size(); i < size; i++) {
+            Activity finishActivity = mActivityStack.get(i);
+            if (null != finishActivity && activity != finishActivity) {
+                if (skipList != null) {
+                    for (int j = 0; j < skipList.length; j++) {
+                        if (finishActivity.getClass() == skipList[j]) {
+                            continue mainFor;//跳过所属该集合的activity 不关闭
+                        }
+                    }
+                }
+                if (!finishActivity.isFinishing()) {
+                    finishActivity.finish();
+                }
+            }
+        }
     }
 }

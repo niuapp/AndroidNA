@@ -60,7 +60,7 @@ public class AppUtils {
      * @return
      */
     public static List<Activity> getActivityList() {
-        return BaseApplication.getActivityList();
+        return BaseApplication.getActivityStack();
     }
 
     /**

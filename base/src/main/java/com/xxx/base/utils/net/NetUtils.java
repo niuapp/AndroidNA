@@ -12,10 +12,7 @@ import com.google.gson.FieldAttributes;
 import com.google.gson.GsonBuilder;
 import com.lzy.okgo.OkGo;
 import com.lzy.okgo.model.HttpHeaders;
-import com.lzy.okgo.model.Response;
 import com.xxx.base.utils.AppUtils;
-
-import org.json.JSONObject;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -32,42 +29,31 @@ import java.util.Set;
  */
 public class NetUtils {
 
-    public static <T> void get(String url, Object tag, Map<String, String> extendHeaders, Map<String, String> params, RequestCallback<T> callback) {
+    public static <T> void get(String url, Object tag, RequestCallback<T> callback) {
+        OkGo.<T>get(url).tag(tag).execute(new BaseModelCallBack<T>(callback));
+    }
 
+    public static <T> void post(String url, Object tag, Map<String, String> extendHeaders, String upJsonStr, RequestCallback<T> callback) {
         HttpHeaders headers = new HttpHeaders();
-        if (extendHeaders != null){
-            for(Map.Entry<String, String> entry : extendHeaders.entrySet()){
+        if (extendHeaders != null) {
+            for (Map.Entry<String, String> entry : extendHeaders.entrySet()) {
                 headers.put(entry.getKey(), entry.getValue());
             }
         }
 
-        OkGo.post(url)
+        OkGo.<T>post(url)
                 .tag(tag)
                 .headers(headers)
-                .upJson(new JSONObject(params).toString())
-                .execute(new BaseCallback<Object>() {
-                    @Override
-                    public void onSuccess(Response<Object> response) {
-                        if (callback != null) {
-                            try {
-                                callback.onSuccess((T) response.body());
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
+                .upJson(upJsonStr)
+                .execute(new BaseModelCallBack<T>(callback));
+    }
 
-                    @Override
-                    public void onError(Response<Object> response) {
-                        if (callback != null) {
-                            try {
-                                callback.onError(response.getException());
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                });
+    public static void post(String url, Object tag, Map<String, String> params, RequestCallback callback) {
+
+//        OkGo.post(url)
+//                .tag(tag)
+//                .params(params)
+//                .execute(new BaseCallback(callback));
     }
 
     /**
